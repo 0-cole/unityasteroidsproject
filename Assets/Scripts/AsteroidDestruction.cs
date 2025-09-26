@@ -8,9 +8,26 @@ public class AsteroidDestruction : MonoBehaviour
     [SerializeField] private bool isBigAsteroid = false;
     
     [Header("Juice Settings")]
-    [SerializeField] private Color smallExplosionColor = Color.yellow;
-    [SerializeField] private Color mediumExplosionColor = Color.orange;
-    [SerializeField] private Color bigExplosionColor = Color.red;
+    [SerializeField] private bool useAutoDetectedColor = true;
+    [SerializeField] private Color fallbackSmallColor = Color.yellow;
+    [SerializeField] private Color fallbackMediumColor = Color.orange;
+    [SerializeField] private Color fallbackBigColor = Color.red;
+    
+    // Cache for the detected color and size
+    private Color? detectedColor = null;
+    private bool? autoDetectedSize = null;
+    
+    void Start()
+    {
+        // 🔍 AUTO-DETECT ASTEROID SIZE if not manually set
+        if (!isSmallAsteroid && !isMediumAsteroid && !isBigAsteroid)
+        {
+            DetectAsteroidSize();
+        }
+        
+        // Pre-cache the color
+        GetAsteroidMaterialColor();
+    }
     
     [Header("Screen Flash")]
     [SerializeField] private bool enableScreenFlash = true;
@@ -97,10 +114,67 @@ public class AsteroidDestruction : MonoBehaviour
     
     private Color GetExplosionColor()
     {
-        if (isSmallAsteroid) return smallExplosionColor;
-        if (isMediumAsteroid) return mediumExplosionColor;
-        if (isBigAsteroid) return bigExplosionColor;
+        // 🎨 AUTO-DETECT COLOR FROM MATERIAL!
+        if (useAutoDetectedColor)
+        {
+            Color materialColor = GetAsteroidMaterialColor();
+            if (materialColor != Color.clear)
+            {
+                return materialColor;
+            }
+        }
+        
+        // Fallback to manual colors if auto-detection fails
+        if (isSmallAsteroid) return fallbackSmallColor;
+        if (isMediumAsteroid) return fallbackMediumColor;
+        if (isBigAsteroid) return fallbackBigColor;
         return Color.white;
+    }
+    
+    private Color GetAsteroidMaterialColor()
+    {
+        // Use cached color if we already found it
+        if (detectedColor.HasValue)
+        {
+            return detectedColor.Value;
+        }
+        
+        // Try to get the color from the asteroid's renderer
+        Renderer asteroidRenderer = GetComponent<Renderer>();
+        if (asteroidRenderer != null && asteroidRenderer.material != null)
+        {
+            Material mat = asteroidRenderer.material;
+            
+            // Try different common color property names
+            Color color = Color.clear;
+            
+            // Most common property names for color in materials
+            if (mat.HasProperty("_Color"))
+            {
+                color = mat.color; // This gets _Color property
+            }
+            else if (mat.HasProperty("_BaseColor"))
+            {
+                color = mat.GetColor("_BaseColor");
+            }
+            else if (mat.HasProperty("_MainColor"))
+            {
+                color = mat.GetColor("_MainColor");
+            }
+            else if (mat.HasProperty("_TintColor"))
+            {
+                color = mat.GetColor("_TintColor");
+            }
+            
+            // Cache the detected color
+            detectedColor = color;
+            
+            Debug.Log($"🎨 Detected asteroid color: {color} from material: {mat.name}");
+            return color;
+        }
+        
+        Debug.LogWarning("⚠️ Could not detect asteroid material color!");
+        return Color.clear;
     }
     
     private int GetScore()
@@ -128,5 +202,48 @@ public class AsteroidDestruction : MonoBehaviour
     {
         // Create a screen flash effect (we'll implement this next!)
         ScreenFlash.Instance?.Flash(Color.white, flashIntensity, flashDuration);
+    }
+    
+    private void DetectAsteroidSize()
+    {
+        // Try to detect size based on GameObject name
+        string objName = gameObject.name.ToLower();
+        
+        if (objName.Contains("small"))
+        {
+            isSmallAsteroid = true;
+            Debug.Log("🔍 Auto-detected: Small Asteroid");
+        }
+        else if (objName.Contains("medium"))
+        {
+            isMediumAsteroid = true;
+            Debug.Log("🔍 Auto-detected: Medium Asteroid");
+        }
+        else if (objName.Contains("big") || objName.Contains("large"))
+        {
+            isBigAsteroid = true;
+            Debug.Log("🔍 Auto-detected: Big Asteroid");
+        }
+        else
+        {
+            // Fallback: detect by scale size
+            float scale = transform.localScale.magnitude;
+            
+            if (scale < 1.5f)
+            {
+                isSmallAsteroid = true;
+                Debug.Log($"🔍 Auto-detected by scale ({scale:F2}): Small Asteroid");
+            }
+            else if (scale < 2.5f)
+            {
+                isMediumAsteroid = true;
+                Debug.Log($"🔍 Auto-detected by scale ({scale:F2}): Medium Asteroid");
+            }
+            else
+            {
+                isBigAsteroid = true;
+                Debug.Log($"🔍 Auto-detected by scale ({scale:F2}): Big Asteroid");
+            }
+        }
     }
 }
