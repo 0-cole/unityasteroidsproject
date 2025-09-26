@@ -13,9 +13,9 @@ public class AsteroidDestruction : MonoBehaviour
     [SerializeField] private Color fallbackMediumColor = Color.orange;
     [SerializeField] private Color fallbackBigColor = Color.red;
     
-    // Cache for the detected color and size
-    private Color? detectedColor = null;
-    private bool? autoDetectedSize = null;
+    // Cache for the detected color
+    private bool hasDetectedColor = false;
+    private Color detectedColor = Color.clear;
     
     void Start()
     {
@@ -134,9 +134,9 @@ public class AsteroidDestruction : MonoBehaviour
     private Color GetAsteroidMaterialColor()
     {
         // Use cached color if we already found it
-        if (detectedColor.HasValue)
+        if (hasDetectedColor)
         {
-            return detectedColor.Value;
+            return detectedColor;
         }
         
         // Try to get the color from the asteroid's renderer
@@ -168,6 +168,7 @@ public class AsteroidDestruction : MonoBehaviour
             
             // Cache the detected color
             detectedColor = color;
+            hasDetectedColor = true;
             
             Debug.Log($"🎨 Detected asteroid color: {color} from material: {mat.name}");
             return color;
